@@ -1,0 +1,257 @@
+{
+  "name": "PDF Contract Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Contract Form",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Amaount",
+              "fieldType": "number"
+            },
+            {
+              "fieldLabel": "Date Started",
+              "fieldType": "date"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -300,
+        -20
+      ],
+      "id": "30eedb18-905a-431a-858f-9169ea0c210c",
+      "name": "On form submission",
+      "webhookId": "e4b419eb-dcda-4435-8148-8029748e544c"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=SYSTEM:\nYou are a legal assistant. Write professional service contracts.\n\nUSER:\nWrite a contract for a client named {{ $json.Name }}\nService price is {{ $json.Amaount }}\nStart date: {{ $json['Date Started'] }}\nMy company name is Feel Your Digital\nMy personal name is Max AI\n\nInclude standard marketing service agreement terms and add a signature section for me and the client. Don’t forget to populate each field with customer name, price, date and my company name as well as my personal name.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -20
+      ],
+      "id": "c566a7d9-eb23-4022-a7c1-2d9602e07d96",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-3.5-turbo-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        160
+      ],
+      "id": "a409dce6-2a4d-45f3-94af-812bb6be2ad5",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "9fhExPeVkEZOuCD3",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.submittedAt }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        180
+      ],
+      "id": "da4b92d0-683b-4d17-a646-0836ea53c7b1",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('On form submission').first().json;\n\nconst contractText = `\nThis Marketing Agreement (\"Agreement\") is made and entered into on this day of ${data.Date || '_______'}, 2025, by and between:<br><br>\n\n<strong>Client:</strong><br>\nName: ${data['Customer name'] || '[Insert Name]'}<br>\nAddress: 801 Street New York, 10231<br>\nEmail: ${data['Customer email'] || '[Insert Email]'}<br><br>\n\n<strong>Marketing Provider:</strong><br>\nName: Fuel Your Digital<br>\nAddress: St Marcus 33, Los Angeles, 82313<br>\nEmail: contact@fyd.com<br><br>\n\nCollectively referred to as the “Parties.”<br><br>\n\n<strong>1. Services Provided</strong><br>\nThe Marketing Provider agrees to provide the following services (the “Services”):<br>\n- Social media content creation and posting<br>\n- YouTube channel growth and strategy<br>\n- Facebook/Instagram ad campaign management<br><br>\n\n<strong>2. Term</strong><br>\nThis Agreement shall begin on ${data.Date || '[Insert Start Date]'} and continue until the completion of the Services.<br><br>\n\n<strong>3. Compensation</strong><br>\nThe Client agrees to pay the Marketing Provider:<br>\nFee: $${data.Price || '[Insert Fee]'}<br>\nPayment Due: Upon signing<br>\nPayment Method: Bank transfer<br><br>\n\n<strong>Client Signature:</strong> _____________________ Date: ${data.Date || '__________'}<br>\n<strong>Marketing Provider Signature:</strong> _____________________ Date: ${data.Date || '__________'}\n`;\n\nreturn [\n  {\n    json: {\n      contractHtml: contractText\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        -20
+      ],
+      "id": "9a84738f-0a06-49b2-93e4-4afaa51842de",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdf.co/v1/pdf/convert/from/html",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "allen25.maxwel@gmail.com_vuh4HgmpXyynOMLQtEoivVmhWgFk2Osdq35TgkhIb5fq7lgqk5gQZIyTVcfH3lfl"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $('On form submission').item.json.Name }}"
+            },
+            {
+              "name": "html",
+              "value": "={{ $json.contractHtml }}"
+            },
+            {
+              "name": "async",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        -20
+      ],
+      "id": "2cac2072-b6f4-48b5-a8d7-dc3302a8db37",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('On form submission').item.json.email }}",
+        "subject": "={{ $('On form submission').item.json.Name }} x Fuel your digital partnership",
+        "emailType": "text",
+        "message": "=Hey  {{ $('On form submission').item.json.Name }}\nThanks for joining us!\nFeel free to have a look at the contract here {{ $json.url }}\n\nIf you have any questions let me know.\nMax",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        680,
+        -20
+      ],
+      "id": "8850b5e2-e894-4fed-b9ba-5b7ac175c84d",
+      "name": "Send a message",
+      "webhookId": "bfe94eda-e0b2-467c-b83c-d2d3db543e84",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9EkVeAXQ12HYuROc",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b1ea9a8d-2195-4966-b231-b3fd1e386118",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1733c5745fd0431abd3e2f88f837f1c3711e1acbe327a1464726b1df43462956"
+  },
+  "id": "EtAeA8pIQ7b6oXNM",
+  "tags": []
+}
